@@ -169,10 +169,8 @@ class FPaymentsForm {
 
         $str = implode('&', $chunks);
         $sig = $this->double_sha1($str);
-        echo $str;
-        echo '\n'.$sig;
-
-
+        //echo $str;
+        //echo '\n'.$sig;
 
         return $sig;
     }

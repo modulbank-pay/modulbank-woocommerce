@@ -94,16 +94,16 @@ function init_modulbank() {
                     'description' => __('secret_key из личного кабинета Модульбанка', 'modulbank'),
                     'default' => '',
                 ),
-#                'success_url' => array(
-#                    'title' => 'Страница «платёж прошёл»',
-#                    'type' => 'text',
-#                    'default' => FPaymentsForm::abs('/success'),
-#                ),
-#                'fail_url' => array(
-#                    'title' => 'Страница «платёж не удался»',
-#                    'type' => 'text',
-#                    'default' => FPaymentsForm::abs('/fail'),
-#                ),
+                'success_url' => array(
+                    'title' => 'Страница «платёж прошёл»',
+                    'type' => 'text',
+                    'default' => FPaymentsForm::abs('/success'),
+                ),
+                'fail_url' => array(
+                    'title' => 'Страница «платёж не удался»',
+                    'type' => 'text',
+                    'default' => FPaymentsForm::abs('/fail'),
+                ),
                 'test_mode' => array(
                     'title' => __('Тестовый режим', 'modulbank'),
                     'type' => 'checkbox',
