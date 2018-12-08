@@ -124,6 +124,9 @@ class FPaymentsForm {
             $form['receipt_items'] = json_encode($items_arr, JSON_UNESCAPED_UNICODE);
         };
         $form['signature'] = $this->get_signature($form);
+
+        logModulbankMessage('payment: '.$order_id.' '. var_export($form, true));
+
         return $form;
     }
 
@@ -257,6 +260,8 @@ abstract class AbstractFPaymentsCallbackHandler {
         $debug_messages = array();
         $ff = $this->get_fpayments_form();
 
+        logModulbankMessage('callback for: '. var_export($data, true));
+
         if (!$ff->is_signature_correct($data)) {
             $error = 'Incorrect "signature"';
         } else if (!($order_id = (int) $data['order_id'])) {
@@ -288,6 +293,11 @@ abstract class AbstractFPaymentsCallbackHandler {
             }
         }
 
+
+
+        logModulbankMessage('callback: '. $error);
+        logModulbankMessage('callback: orderId: '. $order_id);
+
         if ($error) {
             echo "ERROR: $error\n";
         } else {
@@ -295,6 +305,7 @@ abstract class AbstractFPaymentsCallbackHandler {
         }
         foreach ($debug_messages as $msg) {
             echo "...$msg\n";
+            logModulbankMessage('... '. $msg);
         }
     }
 }
@@ -357,4 +368,19 @@ class FPaymentsRecieptItem {
         }
         return $result;
     }
+}
+
+
+function logModulbank($paymentData, $request)
+{
+    logModulbankMessage(json_encode($paymentData, JSON_UNESCAPED_UNICODE));
+    logModulbankMessage($request);
+}
+
+function logModulbankMessage($message)
+{
+//    $log = '[' . date('D M d H:i:s Y', time()) . '] ';
+//    $log .= $message;
+//    $log .= "\n";
+//    file_put_contents(dirname(__FILE__) . "/modulbank.log", $log, FILE_APPEND);
 }

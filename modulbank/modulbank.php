@@ -73,6 +73,17 @@ function init_modulbank() {
             return $this->callback_url;
         }
 
+        public function get_success_url($order)
+        {
+           if($this->settings['custom_success_page'] == 'yes')
+           {
+                return $this->settings['success_url'] ?: $this->success_url;
+           }
+
+           return $this->get_return_url($order) ?: $this->success_url;
+        }
+
+
         function init_form_fields() {
             $this->form_fields = array(
                 'enabled' => array(
@@ -93,6 +104,12 @@ function init_modulbank() {
                     'type' => 'text',
                     'description' => __('secret_key из личного кабинета Модульбанка', 'modulbank'),
                     'default' => '',
+                ),
+                'custom_success_page' => array(
+                    'title' => 'Включить собственную страницу «платёж прошёл»',
+                    'type' => 'checkbox',
+                    'label' => 'Собственная страница «платёж прошёл»',
+                    'default' => 'no',
                 ),
                 'success_url' => array(
                     'title' => 'Страница «платёж прошёл»',
@@ -241,7 +258,10 @@ function init_modulbank() {
                 $callback_handler = new ModulbankCallback($gw);
                 $callback_handler->show($_POST);
             } elseif ($_GET['modulbank'] == 'submit') {
-                $order = wc_get_order($_GET['order_id']);
+
+                $order_id = $_GET['order_id'];
+
+                $order = wc_get_order($order_id);
                 $ff = $gw->get_fpayments_form();
                 $meta = '';
                 $description = '';
@@ -267,8 +287,6 @@ function init_modulbank() {
 
                 }
 
-
-
                 $shipping_total = $order->get_shipping_total();
                 if ($shipping_total) {
                     $receipt_items[] = new FPaymentsRecieptItem(
@@ -288,9 +306,9 @@ function init_modulbank() {
                     $order->get_billing_email(),
                     '',  # name
                     $order->get_billing_phone(),
-                    $gw->settings['success_url'] ?: $gw->success_url,
+                    $gw->get_success_url($order),
                     $gw->settings['fail_url'] ?: $gw->fail_url,
-                    $gw->get_return_url($order),
+                    '',
                     $gw->get_callback_url(),
                     $meta,
                     $description,
@@ -298,9 +316,12 @@ function init_modulbank() {
                     $receipt_items
                 );
 
-                $order->update_status( 'on-hold', 'Начало оплаты...');
-                $order->reduce_order_stock();
-                WC()->cart->empty_cart();
+                try {
+                    wc_reduce_stock_levels($order_id);
+                } catch (Exception $e)
+                {
+
+                }
 
                 $templates_dir = dirname(__FILE__) . '/templates/';
                 include $templates_dir . 'submit.php';
