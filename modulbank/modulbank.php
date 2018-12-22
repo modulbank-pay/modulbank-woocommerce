@@ -287,6 +287,28 @@ function init_modulbank() {
 
                 }
 
+                // Iterating through order fee items ONLY
+                foreach( $order->get_items('fee') as $item_id => $item_fee ){
+
+                    // The fee name
+                    $fee_name = $item_fee->get_name();
+                    // The fee total amount
+                    $fee_total = $item_fee->get_total();
+                    // The fee total tax amount
+                    $fee_total_tax = $item_fee->get_total_tax();
+
+                    $receipt_items[] = new FPaymentsRecieptItem(
+                        $fee_name,
+                        $fee_total,
+                        1,
+                        $vat,
+                        $sno,
+                        'service',
+                        $payment_method
+                    );
+                }
+
+
                 $shipping_total = $order->get_shipping_total();
                 if ($shipping_total) {
                     $receipt_items[] = new FPaymentsRecieptItem(
