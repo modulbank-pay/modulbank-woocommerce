@@ -110,7 +110,7 @@ class FPaymentsForm {
             if (!$receipt_contact) {
                 throw new FPaymentsError('receipt_contact required');
             }
-            $receipt = new FPaymentsReciept();
+            $receipt = new FPaymentsReciept($amount);
             foreach($receipt_items as $item) {
                 $receipt->addItem($item);
             }
