@@ -85,7 +85,6 @@ class FPaymentsForm {
         if (!$description) {
             $description = "Заказ №$order_id";
         }
-
         $form = array(
             'testing'               => (int) $this->is_test,
             'merchant'              => $this->merchant_id,
@@ -111,17 +110,12 @@ class FPaymentsForm {
             if (!$receipt_contact) {
                 throw new FPaymentsError('receipt_contact required');
             }
-            $items_sum = 0;
-            $items_arr = array();
-            foreach ($receipt_items as $item) {
-                $items_sum += $item->get_sum();
-                $items_arr[] = $item->as_dict();  
-            }
-            if ($items_sum != $amount) {
-                throw new FPaymentsError("Amounts mismatched: ${items_sum} != ${amount}");
+            $receipt = new FPaymentsReciept();
+            foreach($receipt_items as $item) {
+                $receipt->addItem($item);
             }
             $form['receipt_contact'] = $receipt_contact;
-            $form['receipt_items'] = json_encode($items_arr, JSON_UNESCAPED_UNICODE);
+            $form['receipt_items'] = $receipt->getJson();
         };
         $form['signature'] = $this->get_signature($form);
 
@@ -166,15 +160,12 @@ class FPaymentsForm {
         foreach ($keys as $k) {
             $v = (string) $params[$k];
             if (($v !== '') && ($k != 'signature')) {
-                $chunks[] = $k .'='. base64_encode($v);
+                $chunks[] = $k . '=' . base64_encode($v);
             }
         }
+        $data = implode('&', $chunks);
 
-        $str = implode('&', $chunks);
-        $sig = $this->double_sha1($str);
-        //echo $str;
-        //echo '\n'.$sig;
-
+        $sig = $this->double_sha1($data);
         return $sig;
     }
 
@@ -252,7 +243,7 @@ abstract class AbstractFPaymentsCallbackHandler {
     */
     abstract protected function mark_order_as_error($order, array $data);
 
-    function show(array $data) {        
+    function show(array $data) {
         if (get_magic_quotes_gpc()) {
            array_walk_recursive($data, 'stripslashes_gpc');
         }
@@ -276,7 +267,6 @@ abstract class AbstractFPaymentsCallbackHandler {
             $debug_messages[] = "info: order completed";
             if ($this->is_order_completed($order)) {
                 $debug_messages[] = "order already marked as completed";
-
             } else if ($this->mark_order_as_completed($order, $data)) {
                 $debug_messages[] = "mark order as completed";
             } else {
@@ -294,7 +284,6 @@ abstract class AbstractFPaymentsCallbackHandler {
         }
 
 
-
         logModulbankMessage('callback: '. $error);
         logModulbankMessage('callback: orderId: '. $order_id);
 
@@ -310,14 +299,94 @@ abstract class AbstractFPaymentsCallbackHandler {
     }
 }
 
+class FPaymentsReciept {
+
+    private $items = [];
+    private $current_total = 0;
+    private $final_total = 0;
+
+    function __construct($total) {
+        $this->final_total = $total;
+    }
+
+    public function addItem($item) {
+        $this->items[] = $item->as_dict();
+        $this->current_total += $item->get_sum();
+    }
+
+    public function getJson() {
+        $this->normalize();
+        return json_encode($this->items, JSON_UNESCAPED_UNICODE);
+    }
+
+    public function normalize() {
+        if ($this->final_total != 0 && $this->final_total != $this->current_total) {
+            $coefficient = $this->final_total / $this->current_total;
+            $realprice   = 0;
+            $aloneId     = null;
+            foreach ($this->items as $index => &$item) {
+                $item['price'] = round($coefficient * $item['price'], 2);
+                $realprice += round($item['price'] * $item['quantity'], 2);
+                if ($aloneId === null && $item['quantity'] === 1) {
+                    $aloneId = $index;
+                }
+
+            }
+            unset($item);
+            if ($aloneId === null) {
+                foreach ($this->items as $index => $item) {
+                    if ($aloneId === null && $item['quantity'] > 1) {
+                        $aloneId = $index;
+                        break;
+                    }
+                }
+            }
+            if ($aloneId === null) {
+                $aloneId = 0;
+            }
+
+            $diff = $this->final_total - $realprice;
+
+            if (abs($diff) >= 0.001) {
+                if ($this->items[$aloneId]['quantity'] === 1) {
+                    $this->items[$aloneId]['price'] = round($this->items[$aloneId]['price'] + $diff, 2);
+                } elseif (
+                    count($this->items) == 1
+                    && abs(round($this->final_total / $this->items[$aloneId]['quantity'], 2) - $this->final_total / $this->items[$aloneId]['quantity']) < 0.001
+                ) {
+                    $this->items[$aloneId]['price'] = round($this->final_total / $this->items[$aloneId]['quantity'], 2);
+                } elseif ($this->items[$aloneId]['quantity'] > 1) {
+                    $tmpItem = $this->items[$aloneId];
+                    $item    = array(
+                        "quantity"       => 1,
+                        "price"          => round($tmpItem['price'] + $diff, 2),
+                        "name"           => $tmpItem['name'],
+                        "sno"            => $tmpItem['sno'],
+                        "payment_object" => $tmpItem['payment_object'],
+                        "payment_method" => $tmpItem['payment_method'],
+                        "vat"            => $tmpItem['vat'],
+                    );
+                    $this->items[$aloneId]['quantity'] -= 1;
+                    array_splice($this->items, $aloneId + 1, 0, array($item));
+                } else {
+                    $this->items[$aloneId]['price'] = round($this->items[$aloneId]['price'] + $diff / ($this->items[$aloneId]['quantity'] ), 2);
+
+                }
+            }
+        }
+    }
+}
+
 
 class FPaymentsRecieptItem {
     const TAX_NO_NDS = 'none';  # без НДС;
     const TAX_0_NDS = 'vat0';  # НДС по ставке 0%;
     const TAX_10_NDS = 'vat10';  # НДС чека по ставке 10%;
     const TAX_18_NDS = 'vat18';  # НДС чека по ставке 18%
+    const TAX_20_NDS = 'vat20';  # НДС чека по ставке 20%
     const TAX_10_110_NDS = 'vat110';  # НДС чека по расчетной ставке 10/110;
     const TAX_18_118_NDS = 'vat118';  # НДС чека по расчетной ставке 18/118.
+    const TAX_20_120_NDS = 'vat120';  # НДС чека по расчетной ставке 20/120.
 
     private $title;
     private $amount;
