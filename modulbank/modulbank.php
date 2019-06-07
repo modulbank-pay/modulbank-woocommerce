@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 1.5
+   Version: 1.6
 */
 
 function init_modulbank() {
@@ -341,7 +341,12 @@ function init_modulbank() {
                 );
 
                 try {
-                    wc_reduce_stock_levels($order_id);
+                    if (function_exists("wc_reduce_stock_levels")){
+                        wc_reduce_stock_levels($order_id);
+                    } else {
+                        $order->reduce_order_stock();
+                    }
+
                 } catch (Exception $e)
                 {
 
