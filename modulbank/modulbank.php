@@ -2,13 +2,17 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 1.6
+   Version: 1.7
 */
 
 function init_modulbank() {
+    if ( ! class_exists( 'WC_Payment_Gateway' ) ) {
+        return;
+    }
     if (!class_exists('FPaymentsForm')) {
         include(dirname(__FILE__) . '/inc/fpayments.php');
     }
+
 
     class ModulbankCallback extends AbstractFPaymentsCallbackHandler {
         private $plugin;
@@ -22,10 +26,11 @@ function init_modulbank() {
             return wc_get_order($order_id);
         }
         protected function get_order_currency($order) {
-            return $order->get_currency();
+            return version_compare(WOOCOMMERCE_VERSION, '3.0', '>=')?$order->get_currency():get_woocommerce_currency();
         }
         protected function get_order_amount($order) {
-            return $order->get_total();
+            $order_total = version_compare(WOOCOMMERCE_VERSION, '3.0', '>=')?$order->get_total():number_format($order->order_total, 2, '.', '');
+            return $order_total;
         }
         protected function is_order_completed($order) {
             return $order->is_paid();
@@ -254,6 +259,7 @@ function init_modulbank() {
     add_action('parse_request', 'parse_modulbank_request');
 
     function parse_modulbank_request() {
+        global $woocommerce;
         if (array_key_exists('modulbank', $_GET)) {
             $gw = new WC_Gateway_Modulbank();
             if ($_GET['modulbank'] == 'callback') {
@@ -273,45 +279,96 @@ function init_modulbank() {
                 $payment_method = $gw->settings['payment_method'];
                 $vat = $gw->settings['vat'];
 
-                $receipt_contact = $order->get_billing_email() ?: $order->get_billing_phone() ?: '';
+                if (version_compare($woocommerce->version, "3.0", ">=")) {
+                    $billing_email = $order->get_billing_email();
+                    $billing_phone = $order->get_billing_phone();
+                    $order_total = $order->get_total();
+                    $currency = $order->get_currency();
+                    $shipping_total = $order->get_shipping_total();
+                } else {
+                    $billing_email = $order->billing_email;
+
+                    $billing_phone = $order->billing_phone;
+                    $order_total = number_format($order->order_total, 2, '.', '');
+                    $currency = get_woocommerce_currency();
+                    $shipping_total = $order->get_total_shipping();
+                }
+
+                $receipt_contact = $billing_email ?: $billing_phone ?: '';
                 $receipt_items = array();
                 $order_items = $order->get_items();
-                foreach( $order_items as $product ) {
-                    $receipt_items[] = new FPaymentsRecieptItem(
-                        $product->get_name(),
-                        $product->get_total() / $product->get_quantity(),
-                        $product->get_quantity(),
-                        $vat,
-                        $sno,
-                        $payment_object,
-                        $payment_method
-                    );
+
+                if (version_compare($woocommerce->version, "3.0", ">=")) {
+                    foreach( $order_items as $product ) {
+                        $receipt_items[] = new FPaymentsRecieptItem(
+                            $product->get_name(),
+                            $product->get_total() / $product->get_quantity(),
+                            $product->get_quantity(),
+                            $vat,
+                            $sno,
+                            $payment_object,
+                            $payment_method
+                        );
+
+                    }
+                    foreach( $order->get_items('fee') as $item_id => $item_fee ){
+
+                        // The fee name
+                        $fee_name = $item_fee->get_name();
+                        // The fee total amount
+                        $fee_total = $item_fee->get_total();
+                        // The fee total tax amount
+                        $fee_total_tax = $item_fee->get_total_tax();
+
+                        $receipt_items[] = new FPaymentsRecieptItem(
+                            $fee_name,
+                            $fee_total,
+                            1,
+                            $vat,
+                            $sno,
+                            'service',
+                            $payment_method
+                        );
+                    }
+                } else {
+
+                    foreach( $order_items as $product ) {
+                        $receipt_items[] = new FPaymentsRecieptItem(
+                            $product['name'],
+                            $item_line_total  = $order->get_item_subtotal( $product, false ),
+                            $product['qty'],
+                            $vat,
+                            $sno,
+                            $payment_object,
+                            $payment_method
+                        );
+
+                    }
+                    foreach( $order->get_items('fee') as $item_id => $item_fee ){
+
+                        // The fee name
+                        $fee_name = $item_fee['name'];
+                        // The fee total amount
+                        $fee_total = $item_fee['line_total'];
+                        // The fee total tax amount
+
+                        $receipt_items[] = new FPaymentsRecieptItem(
+                            $fee_name,
+                            $fee_total,
+                            1,
+                            $vat,
+                            $sno,
+                            'service',
+                            $payment_method
+                        );
+                    }
 
                 }
 
-                // Iterating through order fee items ONLY
-                foreach( $order->get_items('fee') as $item_id => $item_fee ){
-
-                    // The fee name
-                    $fee_name = $item_fee->get_name();
-                    // The fee total amount
-                    $fee_total = $item_fee->get_total();
-                    // The fee total tax amount
-                    $fee_total_tax = $item_fee->get_total_tax();
-
-                    $receipt_items[] = new FPaymentsRecieptItem(
-                        $fee_name,
-                        $fee_total,
-                        1,
-                        $vat,
-                        $sno,
-                        'service',
-                        $payment_method
-                    );
-                }
 
 
-                $shipping_total = $order->get_shipping_total();
+
+
                 if ($shipping_total) {
                     $receipt_items[] = new FPaymentsRecieptItem(
                         'Доставка',
@@ -323,13 +380,15 @@ function init_modulbank() {
                         $payment_method);
                 }
 
+
+
                 $data = $ff->compose(
-                    $order->get_total(),
-                    $order->get_currency(),
-                    $order->get_id(),
-                    $order->get_billing_email(),
+                    $order_total,
+                    $currency,
+                    $order_id,
+                    $billing_email,
                     '',  # name
-                    $order->get_billing_phone(),
+                    $billing_phone,
                     $gw->get_success_url($order),
                     $gw->settings['fail_url'] ?: $gw->fail_url,
                     '',
