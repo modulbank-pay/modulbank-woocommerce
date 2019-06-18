@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 1.7
+   Version: 1.8
 */
 
 function init_modulbank() {
@@ -294,6 +294,8 @@ function init_modulbank() {
                     $shipping_total = $order->get_total_shipping();
                 }
 
+                $billing_phone = modulbank_normalize_phone($billing_phone);
+
                 $receipt_contact = $billing_email ?: $billing_phone ?: '';
                 $receipt_items = array();
                 $order_items = $order->get_items();
@@ -418,6 +420,18 @@ function init_modulbank() {
             }
             die();
         }
+    }
+
+    function modulbank_normalize_phone($phone)
+    {
+        $phone = preg_replace('/[^0-9]/', '', $phone);
+        if (preg_match('/^[87]{0,1}9(\d{9})$/', $phone, $m)) {
+            $phone = '+79' . $m[1];
+        }
+        if (!preg_match('/^\+79\d{9}$/', $phone)) {
+            $phone = '';
+        }
+        return $phone;
     }
 }
 

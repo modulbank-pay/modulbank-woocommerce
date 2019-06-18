@@ -2,7 +2,7 @@
 
 Модуль позволяет принимать платежи банковской картой через Модульбанк.
 
-Модуль для установки через UI. [Скачать модуль](https://github.com/modulbank-pay/modulbank-woocommerce/releases/download/1.7/modulbank-1.7.zip)
+Модуль для установки через UI. [Скачать модуль](https://github.com/modulbank-pay/modulbank-woocommerce/releases/download/1.8/modulbank-1.8.zip)
 
 ### Установка
 
