@@ -410,7 +410,7 @@ class FPaymentsRecieptItem {
     function as_dict() {
         return array(
             'quantity' => $this->n,
-            'price' =>  $this->amount,
+            'price' =>  round($this->amount, 2),
             'name' => $this->title,
             'sno' => $this->sno,
             'payment_object' => $this->payment_object,
@@ -420,7 +420,7 @@ class FPaymentsRecieptItem {
     }
 
     function get_sum() {
-        return $this->n * $this->amount;
+        return $this->n * round($this->amount, 2);
     }
 
     private static function clean_title($s, $max_chars=64) {
