@@ -64,6 +64,14 @@ class FPaymentsForm {
         return self::abs('/api/v1/rebill/');
     }
 
+    function get_capture_url() {
+        return self::abs('/api/v1/capture');
+    }
+
+    function get_refund_url() {
+        return self::abs('/api/v1/refund');
+    }
+
     function compose(
         $amount,
         $currency,
@@ -80,7 +88,8 @@ class FPaymentsForm {
         $receipt_contact = '',
         array $receipt_items = null,
         $recurring_frequency = '',
-        $recurring_finish_date = ''
+        $recurring_finish_date = '',
+        $preauth = 0
     ) {
         if (!$description) {
             $description = "Заказ №$order_id";
@@ -101,6 +110,7 @@ class FPaymentsForm {
             'fail_url'              => $fail_url,
             'cancel_url'            => $cancel_url,
             'callback_url'          => $callback_url,
+            'preauth'               => $preauth,
             'meta'                  => $meta,
             'sysinfo'               => $this->get_sysinfo(),
             'recurring_frequency'   => $recurring_frequency,
@@ -124,6 +134,62 @@ class FPaymentsForm {
         return $form;
     }
 
+    function refund_payment(
+        $transaction_id,
+        $amount
+    ) {
+        $url  = $this->get_refund_url();
+        $data = [
+            'transaction'    => $transaction_id,
+            'amount'         => $amount,
+            'merchant'       => $this->merchant_id,
+            'salt'           => $this->get_salt(32),
+            'unix_timestamp' => time(),
+        ];
+        $data['signature'] = $this->get_signature($data);
+        $response = $this->send_request('POST', $url, $data);
+        $response = json_decode($response);
+        if (!$response) {
+            return false;
+        }
+        return $response->status === 'ok';
+    }
+
+
+    function confirm_payment(
+        $transaction_id,
+        $amount,
+        $receipt_contact = '',
+        array $receipt_items = null
+    ) {
+        $url  = $this->get_capture_url();
+        $data = [
+            'transaction'    => $transaction_id,
+            'amount'         => $amount,
+            'merchant'       => $this->merchant_id,
+            'salt'           => $this->get_salt(32),
+            'unix_timestamp' => time(),
+        ];
+        if ($receipt_items) {
+            if (!$receipt_contact) {
+                throw new FPaymentsError('receipt_contact required');
+            }
+            $receipt = new FPaymentsReciept($amount);
+            foreach($receipt_items as $item) {
+                $receipt->addItem($item);
+            }
+            $data['receipt_contact'] = $receipt_contact;
+            $data['receipt_items'] = $receipt->getJson();
+        }
+        $data['signature'] = $this->get_signature($data);
+        $response = $this->send_request('POST', $url, $data);
+        $response = json_decode($response);
+        if (!$response) {
+            return false;
+        }
+        return $response->status === 'ok';
+    }
+
     private function get_sysinfo() {
         return json_encode(array(
             'json_enabled' => true,
@@ -142,7 +208,7 @@ class FPaymentsForm {
 
     function is_order_completed(array $form) {
         $is_testing_transaction = ($form['testing'] === '1');
-        return ($form['state'] == 'COMPLETE') && ($is_testing_transaction == $this->is_test);
+        return ($form['state'] == 'COMPLETE' || $form['state'] == 'AUTHORIZED') && ($is_testing_transaction == $this->is_test);
     }
 
     public static function array_to_hidden_fields(array $form) {
@@ -192,7 +258,7 @@ class FPaymentsForm {
         $recurrind_tx_id,
         $recurring_token,
         $description = ''
-    ){
+    ) {
         if (!$description) {
             $description = "Заказ №$order_id";
         }
@@ -209,15 +275,29 @@ class FPaymentsForm {
             'recurring_token'       => $recurring_token,
         );
         $form['signature'] = $this->get_signature($form);
-        $paramstr = http_build_query($form);
-        $ch = curl_init($this->get_rebill_url());
-        curl_setopt($ch, CURLOPT_USERAGENT, $this->plugininfo);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $paramstr);
-        $result = curl_exec($ch);
-        curl_close($ch);
+        $result = $this->send_request('POST', $this->get_rebill_url(), $form);
         return json_decode($result);
+    }
+
+    function send_request($method, $url, $data) {
+        if ($method == 'GET') {
+            $url .= "?".http_build_query($data);
+        }
+        $response = false;
+        if (function_exists("curl_init")) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_VERBOSE, 0);
+            curl_setopt($ch, CURLOPT_USERAGENT, $this->plugininfo);
+            if ($method == 'POST') {
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+            }
+            $response = curl_exec($ch);
+            curl_close($ch);
+        }
+        return $response;
     }
 }
 
