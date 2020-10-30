@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 2.0
+   Version: 2.1
 */
 
 function init_modulbank() {
@@ -59,8 +59,8 @@ function init_modulbank() {
             $this->init_form_fields();
             $this->init_settings();
 
-            $this->title = __("Оплата банковской картой через Модульбанк");
-            $this->description = '';
+            $this->title = $this->settings['title'];
+            $this->description = $this->settings['description'];
 
             if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
                 add_action(
@@ -97,6 +97,18 @@ function init_modulbank() {
                     'label' => ' ',
                     'default' => 'yes',
                     'description' => '',
+                ),
+                'title' => array(
+                    'title' => __('Заголовок', 'modulbank'),
+                    'type' => 'text',
+                    'description' => __('Название, которое пользователь видит во время оплаты', 'modulbank'),
+                    'default' => "Оплатить банковской картой через Модульбанк",
+                ),
+                'description' => array(
+                    'title' => __('Описание', 'modulbank'),
+                    'type' => 'textarea',
+                    'description' => __('Описание, которое пользователь видит во время оплаты', 'modulbank'),
+                    'default' => '',
                 ),
                 'merchant_id' => array(
                     'title' => 'Идентификатор магазина',
@@ -209,20 +221,8 @@ function init_modulbank() {
                         'vat120' => 'НДС чека по расчетной ставке 20% ',
                     ),
                     'default' => 'full_prepayment'
-                )
+                ),
 
-#                'title' => array(
-#                    'title' => __('Заголовок', 'modulbank'),
-#                    'type' => 'text',
-#                    'description' => __('Название, которое пользователь видит во время оплаты', 'modulbank'),
-#                    'default' => "Оплатить банковской картой через Модульбанк",
-#                ),
-#                'description' => array(
-#                    'title' => __('Описание', 'modulbank'),
-#                    'type' => 'textarea',
-#                    'description' => __('Описание, которое пользователь видит во время оплаты', 'modulbank'),
-#                    'default' => '',
-#                ),
             );
         }
 
