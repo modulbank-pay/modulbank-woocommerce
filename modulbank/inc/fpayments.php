@@ -396,6 +396,9 @@ class FPaymentsReciept {
     }
 
     public function addItem($item) {
+        if ($item->get_sum() <= 0 ){
+            return false;
+        }
         $this->items[] = $item->as_dict();
         $this->current_total += $item->get_sum();
     }
