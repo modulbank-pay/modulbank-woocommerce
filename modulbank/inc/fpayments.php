@@ -150,9 +150,12 @@ class FPaymentsForm {
         $response = $this->send_request('POST', $url, $data);
         $response = json_decode($response);
         if (!$response) {
-            return false;
+            throw new FPaymentsError('Empty response');
         }
-        return $response->status === 'ok';
+        if ($response->status !== 'ok') {
+            throw new FPaymentsError($response->message);
+        }
+        return true;
     }
 
 
@@ -185,9 +188,12 @@ class FPaymentsForm {
         $response = $this->send_request('POST', $url, $data);
         $response = json_decode($response);
         if (!$response) {
-            return false;
+            throw new FPaymentsError('Empty response');
         }
-        return $response->status === 'ok';
+        if ($response->status !== 'ok') {
+            throw new FPaymentsError($response->message);
+        }
+        return true;
     }
 
     private function get_sysinfo() {
