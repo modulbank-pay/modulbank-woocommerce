@@ -36,6 +36,17 @@ function init_modulbank() {
             return $order->is_paid();
         }
         protected function mark_order_as_completed($order, array $data) {
+            try {
+                if (function_exists("wc_reduce_stock_levels")){
+                    wc_reduce_stock_levels($order_id);
+                } else {
+                    $order->reduce_order_stock();
+                }
+
+            } catch (Exception $e)
+            {
+
+            }
             return $order->payment_complete();
         }
         protected function mark_order_as_error($order, array $data) {
@@ -354,18 +365,6 @@ function init_modulbank() {
                     '',
                     $gw->settings['preauth'] == 'yes'?'1':'0'
                 );
-
-                try {
-                    if (function_exists("wc_reduce_stock_levels")){
-                        wc_reduce_stock_levels($order_id);
-                    } else {
-                        $order->reduce_order_stock();
-                    }
-
-                } catch (Exception $e)
-                {
-
-                }
 
                 $templates_dir = dirname(__FILE__) . '/templates/';
                 include $templates_dir . 'submit.php';
