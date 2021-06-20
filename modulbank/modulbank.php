@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 2.2
+   Version: 2.4
 */
 
 function init_modulbank() {
@@ -232,6 +232,39 @@ function init_modulbank() {
                     'default' => 'full_prepayment'
                 ),
 
+                'show_custom_pm' => array(
+                    'title' => __('Отображаемые варианты оплаты', 'modulbank'),
+                    'type' => 'checkbox',
+                    'default' => 'no',
+                    'description' => __('Для отображения отдельных методов оплаты установите галочку и выберите интересующие из списка',
+                        'modulbank'
+                ),
+                ),
+                'card' => array(
+                    'title' => '',
+                    'type' => 'checkbox',
+                    'default' => 'no',
+                    'label' => __('По карте', 'modulbank'),
+                ),
+                'sbp' => array(
+                    'title' => '',
+                    'type' => 'checkbox',
+                    'default' => 'no',
+                    'label' => __('Система быстрых платежей', 'modulbank'),
+                ),
+                'googlepay' => array(
+                    'title' => '',
+                    'type' => 'checkbox',
+                    'default' => 'no',
+                    'label' => __('GooglePay', 'modulbank'),
+                ),
+                'applepay' => array(
+                    'title' => '',
+                    'type' => 'checkbox',
+                    'default' => 'no',
+                    'label' => __('ApplePay', 'modulbank'),
+                ),
+
             );
         }
 
@@ -343,6 +376,13 @@ function init_modulbank() {
 
                 $receipt_items = modulbank_get_receipt_items($order, $gw);
 
+                $custom_payment_methods = [];
+                if ($gw->settings['show_custom_pm'] == 'yes') {
+                    $methods = ['card', 'sbp', 'applepay', 'googlepay'];
+                    $custom_payment_methods = array_filter($methods, function ($method) use($gw) {
+                        return $gw->settings[$method] == 'yes';
+                    });
+                }
 
                 $data = $ff->compose(
                     $order_total,
@@ -361,7 +401,8 @@ function init_modulbank() {
                     $receipt_items,
                     '',
                     '',
-                    $gw->settings['preauth'] == 'yes'?'1':'0'
+                    $gw->settings['preauth'] == 'yes'?'1':'0',
+                    $custom_payment_methods
                 );
 
                 $templates_dir = dirname(__FILE__) . '/templates/';

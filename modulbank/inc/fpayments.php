@@ -89,7 +89,8 @@ class FPaymentsForm {
         array $receipt_items = null,
         $recurring_frequency = '',
         $recurring_finish_date = '',
-        $preauth = 0
+        $preauth = 0,
+        $payment_methods = []
     ) {
         if (!$description) {
             $description = "Заказ №$order_id";
@@ -116,6 +117,9 @@ class FPaymentsForm {
             'recurring_frequency'   => $recurring_frequency,
             'recurring_finish_date' => $recurring_finish_date,
         );
+        if (!empty($payment_methods)) {
+            $form['show_payment_methods'] = json_encode(array_values($payment_methods));
+        }
         if ($receipt_items) {
             if (!$receipt_contact) {
                 throw new FPaymentsError('receipt_contact required');
