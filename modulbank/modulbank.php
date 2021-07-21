@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 2.4
+   Version: 2.5
 */
 
 function init_modulbank() {
@@ -38,7 +38,7 @@ function init_modulbank() {
         protected function mark_order_as_completed($order, array $data) {
             try {
                 if (function_exists("wc_reduce_stock_levels")){
-                    wc_reduce_stock_levels($order_id);
+                    wc_reduce_stock_levels($order->get_id());
                 } else {
                     $order->reduce_order_stock();
                 }
@@ -324,7 +324,7 @@ function init_modulbank() {
                 '" . esc_sql($data['state']) . "',
                 '" . esc_sql($data['order_id']) . "',
                 '" . esc_sql($data['pan_mask']) . "',
-                '" . esc_sql($data['message']) . "'
+                '" . esc_sql(isset($data['message'])?$data['message']:'') . "'
             )
             ON DUPLICATE KEY UPDATE
             rrn = values(rrn),
@@ -723,7 +723,7 @@ function modulbankpayment_transactions() {
         );
     }
 
-    if ('bottom' === $which) {
+    if (isset($which) && 'bottom' === $which) {
         $html_current_page  = $current;
         $total_pages_before = '<span class="screen-reader-text">' . __('Current Page') . '</span><span id="table-paging" class="paging-input"><span class="tablenav-paging-text">';
     } else {
