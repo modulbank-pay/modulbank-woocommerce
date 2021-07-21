@@ -334,7 +334,7 @@ abstract class AbstractFPaymentsCallbackHandler {
     abstract protected function mark_order_as_error($order, array $data);
 
     function show(array $data) {
-        if (get_magic_quotes_gpc()) {
+        if (function_exists("get_magic_quotes_gpc") && get_magic_quotes_gpc()) {
            array_walk_recursive($data, 'stripslashes_gpc');
         }
         $error = null;
