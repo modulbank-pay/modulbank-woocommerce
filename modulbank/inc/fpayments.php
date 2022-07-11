@@ -121,9 +121,6 @@ class FPaymentsForm {
             $form['show_payment_methods'] = json_encode(array_values($payment_methods));
         }
         if ($receipt_items) {
-            if (!$receipt_contact) {
-                throw new FPaymentsError('receipt_contact required');
-            }
             $receipt = new FPaymentsReciept($amount);
             foreach($receipt_items as $item) {
                 $receipt->addItem($item);
