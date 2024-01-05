@@ -315,15 +315,15 @@ function init_modulbank() {
         global $wpdb;
         $wpdb->query("INSERT INTO {$wpdb->prefix}modulbankpayment (transaction_id, rrn, auth_number, amount, original_amount, created_datetime, auth_code, state, order_id, pan_mask, message) values (
                 '" . esc_sql($data['transaction_id']) . "',
-                '" . esc_sql($data['rrn']) . "',
-                '" . esc_sql($data['auth_number']) . "',
+                '" . esc_sql(isset($data['rrn'])?$data['rrn']:'') . "',
+                '" . esc_sql(isset($data['auth_number'])?$data['auth_number']:'') . "',
                 '" . esc_sql($data['amount']) . "',
                 '" . esc_sql($data['original_amount']) . "',
                 '" . esc_sql($data['created_datetime']) . "',
-                '" . esc_sql($data['auth_code']) . "',
+                '" . esc_sql(isset($data['auth_code'])?$data['auth_code']:'') . "',
                 '" . esc_sql($data['state']) . "',
                 '" . esc_sql($data['order_id']) . "',
-                '" . esc_sql($data['pan_mask']) . "',
+                '" . esc_sql(isset($data['pan_mask'])?$data['pan_mask']:'') . "',
                 '" . esc_sql(isset($data['message'])?$data['message']:'') . "'
             )
             ON DUPLICATE KEY UPDATE
