@@ -2,7 +2,7 @@
 /*
    Plugin Name: Оплата через Модульбанк
    Description: Платежный модуль WooCommerce для приема платежей с помощью Модульбанка.
-   Version: 2.6.1
+   Version: 2.7.0
 */
 
 function init_modulbank() {
@@ -306,7 +306,36 @@ function init_modulbank() {
         return $methods;
     }
 
+    function register_modulbank_blocks() {
+        if ( ! class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) ) {
+            return;
+        }
+
+        // Include the custom Blocks Checkout class
+        require_once __DIR__ . '/inc/class-modulbank-gateway-blocks.php';
+
+        // Hook the registration function to the 'woocommerce_blocks_payment_method_type_registration' action
+        add_action(
+            'woocommerce_blocks_payment_method_type_registration',
+            function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry ) {
+                // Register an instance of My_Custom_Gateway_Blocks
+                $payment_method_registry->register( new Modulbank_Gateway_Blocks );
+            }
+        );
+    }
+
+    function declare_modulbank_blocks_support() {
+        if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil')) {
+        // Declare compatibility for 'cart_checkout_blocks'
+            \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
+        }
+    }
+
     add_filter( 'woocommerce_payment_gateways', 'add_modulbank_gateway_class' );
+
+    add_action( 'woocommerce_blocks_loaded', 'register_modulbank_blocks' );
+
+    add_action( 'before_woocommerce_init', 'declare_modulbank_blocks_support');
 
     add_action('parse_request', 'parse_modulbank_request');
 
